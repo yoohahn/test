@@ -1,0 +1,43 @@
+name: Test CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [12.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Uses Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Add hosts
+        run: sudo echo "127.0.0.1 secret.nginx.local" | sudo tee -a /etc/hosts
+      - name: Start Nginx
+        run: yarn start
+
+      - uses: actions/checkout@v1
+      - run: docker run --net="host" --add-host=secret.nginx.local:127.0.0.1 -v $PWD:/e2e -w /e2e cypress/included:4.0.0 --browser chrome
+      - name: Cypress Screenshots
+        uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: Cypress Screenshots
+          path: cypress/screenshots
+      - name: Cypress Videos
+        uses: actions/upload-artifact@v1
+        if: always()
+        with:
+          name: Cypress Videos
+          path: cypress/videos
