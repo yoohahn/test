@@ -24,6 +24,28 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Add hosts
         run: sudo echo "127.0.0.1 secret.nginx.local" | sudo tee -a /etc/hosts
+
+      - uses: actions/cache@v1
+        id: cache
+        with:
+          path: docker-cache
+          key: ${{ runner.os }}-docker-v1
+          restore-keys: |
+            ${{ runner.os }}-docker-
+      - name: Load cached Docker layers
+        run: |
+          if [ -d "docker-cache" ]; then
+            cat docker-cache/x* > img.tar
+            docker load < img.tar
+            rm -rf docker-cache
+          fi
+      - name: Pull image
+        run: |
+          docker pull yoohahn/nginx
+          docker save yoohahn/nginx $(docker history -q yoohahn/nginx | awk '!/<missing>/{print}') > img.tar
+          mkdir docker-cache
+          split -b 100m img.tar docker-cache/x
+
       - name: Start Nginx
         run: yarn start
       - name: Install cypress
